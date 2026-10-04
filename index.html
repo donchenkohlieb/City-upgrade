@@ -99,12 +99,13 @@
         <!-- Selected City Floating Panel -->
         <div id="city-panel" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30 pointer-events-auto hidden w-80">
             <div class="bg-slate-900/95 backdrop-blur-md border-2 border-blue-500/50 rounded-xl p-4 shadow-2xl shadow-blue-900/50">
+                <img id="cp-image" src="" alt="City Landmark" class="w-full h-32 object-cover rounded-lg mb-3 shadow-md shadow-black/50 border border-slate-700">
                 <div class="flex justify-between items-start mb-2">
                     <div>
                         <h2 class="text-xl font-orbitron text-white font-bold" id="cp-name">City Name</h2>
                         <p class="text-xs text-slate-400" id="cp-status">Unowned</p>
                     </div>
-                    <button id="cp-close" class="text-slate-500 hover:text-white">✕</button>
+                    <button id="cp-close" class="text-slate-500 hover:text-white text-xl leading-none">✕</button>
                 </div>
                 
                 <div id="cp-unowned-view" class="hidden">
@@ -122,6 +123,16 @@
                     </div>
                     <button id="cp-upg-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded transition-colors mb-2">
                         Upgrade (<span id="cp-upg-cost" class="text-emerald-300"></span>)
+                    </button>
+                </div>
+
+                <div id="cp-damaged-view" class="hidden">
+                    <div class="bg-red-900/50 border border-red-500 rounded p-3 mb-3 text-center">
+                        <p class="text-red-400 font-bold text-sm mb-1">⚠️ DISASTER STRUCK ⚠️</p>
+                        <p class="text-xs text-slate-300">Income halted until repaired.</p>
+                    </div>
+                    <button id="cp-repair-btn" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 rounded transition-colors mb-2">
+                        Repair (<span id="cp-repair-cost" class="text-yellow-200"></span>)
                     </button>
                 </div>
                 
@@ -151,6 +162,7 @@
             <div class="flex border-b border-slate-700 bg-slate-800/80">
                 <button class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white tab-btn active" data-target="tab-stats">Stats</button>
                 <button class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white tab-btn" data-target="tab-cities">Cities</button>
+                <button class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white tab-btn" data-target="tab-crates">Crates</button>
                 <button class="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white tab-btn" data-target="tab-leaderboard">Leaders</button>
             </div>
 
@@ -187,6 +199,24 @@
                     <p class="text-xs text-slate-400 mb-2 text-center">Click a city on the globe, or select one below.</p>
                     <div id="city-list-container" class="space-y-2">
                         <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- CRATES TAB -->
+                <div id="tab-crates" class="tab-content hidden space-y-4">
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 text-center">
+                        <h3 class="text-amber-400 font-orbitron font-bold mb-1">Supply Crates</h3>
+                        <p class="text-xs text-slate-400 mb-3">Buy crates to get Disaster Shields or huge cash drops!</p>
+                        <p class="text-sm text-slate-300 mb-4">Active Shields: <span id="stat-shields" class="text-blue-400 font-bold text-lg">0</span></p>
+                        
+                        <div class="bg-slate-900 rounded p-3 mb-3 border border-slate-600">
+                            <img src="images/crates/crate1.png" onerror="this.src='https://placehold.co/150x150/3b82f6/fff?text=Standard+Crate'" class="w-24 h-24 mx-auto mb-2 object-contain drop-shadow-lg">
+                            <h4 class="text-white font-bold text-sm">Standard Crate</h4>
+                            <p class="text-xs text-slate-400 mb-2">Chance for shields or money.</p>
+                            <button id="btn-buy-crate" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded text-sm transition-colors">
+                                Buy ($25.0k)
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -248,25 +278,72 @@
 
         // CITY DATA STRUCTURE (Tiered by Rebirths)
         const CITIES_DB = [
-            // Tier 0 (0 Rebirths) - Base cost 100 to 5,000
-            { id: 'nyc', name: 'New York', lat: 40.7128, lon: -74.0060, req: 0, cost: 100, inc: 5 },
-            { id: 'lon', name: 'London', lat: 51.5074, lon: -0.1278, req: 0, cost: 500, inc: 20 },
-            { id: 'tok', name: 'Tokyo', lat: 35.6762, lon: 139.6503, req: 0, cost: 2000, inc: 75 },
-            { id: 'par', name: 'Paris', lat: 48.8566, lon: 2.3522, req: 0, cost: 5000, inc: 150 },
+            // Tier 0 (0 Rebirths) - Base early game
+            { id: 'nyc', name: 'New York', lat: 40.71, lon: -74.00, req: 0, cost: 100, inc: 5 },
+            { id: 'lon', name: 'London', lat: 51.50, lon: -0.12, req: 0, cost: 300, inc: 15 },
+            { id: 'tok', name: 'Tokyo', lat: 35.67, lon: 139.65, req: 0, cost: 800, inc: 40 },
+            { id: 'par', name: 'Paris', lat: 48.85, lon: 2.35, req: 0, cost: 1500, inc: 75 },
+            { id: 'ber', name: 'Berlin', lat: 52.52, lon: 13.40, req: 0, cost: 3000, inc: 150 },
+            { id: 'rom', name: 'Rome', lat: 41.90, lon: 12.49, req: 0, cost: 5000, inc: 250 },
+            { id: 'mad', name: 'Madrid', lat: 40.41, lon: -3.70, req: 0, cost: 8000, inc: 400 },
+            { id: 'tor', name: 'Toronto', lat: 43.65, lon: -79.38, req: 0, cost: 12000, inc: 600 },
+            { id: 'chi', name: 'Chicago', lat: 41.87, lon: -87.62, req: 0, cost: 18000, inc: 900 },
+            { id: 'mia', name: 'Miami', lat: 25.76, lon: -80.19, req: 0, cost: 25000, inc: 1250 },
             
-            // Tier 1 (1 Rebirth) - Huge jump in earnings
-            { id: 'syd', name: 'Sydney', lat: -33.8688, lon: 151.2093, req: 1, cost: 50000, inc: 1000 },
-            { id: 'dub', name: 'Dubai', lat: 25.2048, lon: 55.2708, req: 1, cost: 150000, inc: 3500 },
-            { id: 'sin', name: 'Singapore', lat: 1.3521, lon: 103.8198, req: 1, cost: 400000, inc: 8000 },
-            
-            // Tier 2 (2 Rebirths)
-            { id: 'hkg', name: 'Hong Kong', lat: 22.3193, lon: 114.1694, req: 2, cost: 2000000, inc: 30000 },
-            { id: 'seo', name: 'Seoul', lat: 37.5665, lon: 126.9780, req: 2, cost: 5000000, inc: 80000 },
-            { id: 'lax', name: 'Los Angeles', lat: 34.0522, lon: -118.2437, req: 2, cost: 15000000, inc: 200000 },
+            // Tier 1 (1 Rebirth)
+            { id: 'syd', name: 'Sydney', lat: -33.86, lon: 151.20, req: 1, cost: 50000, inc: 2500 },
+            { id: 'dub', name: 'Dubai', lat: 25.20, lon: 55.27, req: 1, cost: 75000, inc: 3750 },
+            { id: 'sin', name: 'Singapore', lat: 1.35, lon: 103.81, req: 1, cost: 100000, inc: 5000 },
+            { id: 'hkg', name: 'Hong Kong', lat: 22.31, lon: 114.16, req: 1, cost: 150000, inc: 7500 },
+            { id: 'seo', name: 'Seoul', lat: 37.56, lon: 126.97, req: 1, cost: 200000, inc: 10000 },
+            { id: 'lax', name: 'Los Angeles', lat: 34.05, lon: -118.24, req: 1, cost: 300000, inc: 15000 },
+            { id: 'bom', name: 'Mumbai', lat: 19.07, lon: 72.87, req: 1, cost: 400000, inc: 20000 },
+            { id: 'sao', name: 'Sao Paulo', lat: -23.55, lon: -46.63, req: 1, cost: 550000, inc: 27500 },
+            { id: 'mex', name: 'Mexico City', lat: 19.43, lon: -99.13, req: 1, cost: 750000, inc: 37500 },
+            { id: 'cai', name: 'Cairo', lat: 30.04, lon: 31.23, req: 1, cost: 1000000, inc: 50000 },
 
-            // Tier 3 (5 Rebirths)
-            { id: 'mon', name: 'Monaco', lat: 43.7384, lon: 7.4246, req: 5, cost: 100000000, inc: 1500000 },
-            { id: 'zur', name: 'Zurich', lat: 47.3769, lon: 8.5417, req: 5, cost: 500000000, inc: 8000000 }
+            // Tier 2 (2 Rebirths)
+            { id: 'shg', name: 'Shanghai', lat: 31.23, lon: 121.47, req: 2, cost: 2000000, inc: 100000 },
+            { id: 'mos', name: 'Moscow', lat: 55.75, lon: 37.61, req: 2, cost: 3500000, inc: 175000 },
+            { id: 'ist', name: 'Istanbul', lat: 41.00, lon: 28.97, req: 2, cost: 5000000, inc: 250000 },
+            { id: 'bue', name: 'Buenos Aires', lat: -34.60, lon: -58.38, req: 2, cost: 7000000, inc: 350000 },
+            { id: 'jak', name: 'Jakarta', lat: -6.20, lon: 106.81, req: 2, cost: 10000000, inc: 500000 },
+            { id: 'del', name: 'Delhi', lat: 28.61, lon: 77.20, req: 2, cost: 15000000, inc: 750000 },
+            { id: 'bej', name: 'Beijing', lat: 39.90, lon: 116.40, req: 2, cost: 20000000, inc: 1000000 },
+            { id: 'man', name: 'Manila', lat: 14.59, lon: 120.98, req: 2, cost: 30000000, inc: 1500000 },
+            { id: 'lag', name: 'Lagos', lat: 6.52, lon: 3.37, req: 2, cost: 45000000, inc: 2250000 },
+            { id: 'rio', name: 'Rio de Janeiro', lat: -22.90, lon: -43.17, req: 2, cost: 60000000, inc: 3000000 },
+
+            // Tier 3+ Generated Array (Totalizing ~100+ cities globally)
+            ...[
+                ["Bangkok", 13.75, 100.50], ["Kolkata", 22.57, 88.36], ["Tehran", 35.68, 51.38],
+                ["Kinshasa", -4.44, 15.26], ["Lima", -12.04, -77.04], ["Karachi", 24.86, 67.00],
+                ["Bogota", 4.71, -74.07], ["Ho Chi Minh", 10.82, 106.62], ["Riyadh", 24.71, 46.67],
+                ["Baghdad", 33.31, 44.36], ["Santiago", -33.44, -70.66], ["Dallas", 32.77, -96.79],
+                ["Houston", 29.76, -95.36], ["Washington", 38.90, -77.03], ["Boston", 42.36, -71.05],
+                ["Atlanta", 33.74, -84.38], ["Seattle", 47.60, -122.33], ["Denver", 39.73, -104.99],
+                ["Vienna", 48.20, 16.37], ["Athens", 37.98, 23.72], ["Prague", 50.07, 14.43],
+                ["Warsaw", 52.22, 21.01], ["Budapest", 47.49, 19.04], ["Lisbon", 38.72, -9.13],
+                ["Stockholm", 59.32, 18.06], ["Oslo", 59.91, 10.75], ["Helsinki", 60.16, 24.93],
+                ["Copenhagen", 55.67, 12.56], ["Auckland", -36.84, 174.76], ["Melbourne", -37.81, 144.96],
+                ["Cape Town", -33.92, 18.42], ["Johannesburg", -26.20, 28.04], ["Nairobi", -1.29, 36.82],
+                ["Addis Ababa", 9.03, 38.74], ["Accra", 5.60, -0.18], ["Dakar", 14.71, -17.46],
+                ["Caracas", 10.48, -66.90], ["Havana", 23.11, -82.36], ["San Juan", 18.46, -66.10],
+                ["Panama City", 8.98, -79.51], ["San Jose", 9.92, -84.09], ["Guatemala City", 14.63, -90.52],
+                ["Reykjavik", 64.14, -21.82], ["Nuuk", 64.18, -51.72], ["Honolulu", 21.30, -157.85],
+                ["Anchorage", 61.21, -149.90], ["Vancouver", 49.28, -123.12], ["Montreal", 45.50, -73.56],
+                ["Kabul", 34.55, 69.20], ["Islamabad", 33.68, 73.04], ["Dhaka", 23.81, 90.41],
+                ["Yangon", 16.86, 96.19], ["Taipei", 25.03, 121.56], ["Osaka", 34.69, 135.50],
+                ["Busan", 35.17, 129.07], ["Vladivostok", 43.11, 131.88], ["Ulaanbaatar", 47.92, 106.91],
+                ["Tashkent", 41.29, 69.24], ["Almaty", 43.22, 76.85], ["Baku", 40.40, 49.86],
+                ["Jerusalem", 31.76, 35.21], ["Amman", 31.95, 35.93], ["Beirut", 33.89, 35.50],
+                ["Damascus", 33.51, 36.29], ["Kuwait City", 29.37, 47.97], ["Doha", 25.28, 51.53],
+                ["Muscat", 23.58, 58.40], ["Sanaa", 15.36, 44.19], ["Casablanca", 33.57, -7.58],
+                ["Algiers", 36.75, 3.05], ["Tunis", 36.80, 10.18], ["Tripoli", 32.88, 13.19]
+            ].map((c, i) => ({
+                id: `gen${i}`, name: c[0], lat: c[1], lon: c[2], 
+                req: 3 + Math.floor(i/15), cost: 100000000 * Math.pow(1.5, i), inc: 5000000 * Math.pow(1.2, i)
+            }))
         ];
 
         // GAME STATE
@@ -276,14 +353,16 @@
             money: 0,
             totalEarned: 0,
             rebirths: 0,
-            cities: {} // { cityId: { level: 1 } }
+            shields: 0,
+            cities: {} // { cityId: { level: 1, damaged: false } }
         };
 
         // Initialize empty cities object
-        CITIES_DB.forEach(c => { State.cities[c.id] = { level: 0 }; });
+        CITIES_DB.forEach(c => { State.cities[c.id] = { level: 0, damaged: false }; });
 
         // UTILS
         const formatMoney = (num) => {
+            if(num >= 1e12) return '$' + (num/1e12).toFixed(2) + 'T';
             if(num >= 1e9) return '$' + (num/1e9).toFixed(2) + 'B';
             if(num >= 1e6) return '$' + (num/1e6).toFixed(2) + 'M';
             if(num >= 1e3) return '$' + (num/1e3).toFixed(1) + 'k';
@@ -291,7 +370,7 @@
         };
 
         const getMultiplier = () => 1 + (State.rebirths * 0.5); // 50% per rebirth
-        const getRebirthReq = () => 1000000 * Math.pow(10, State.rebirths);
+        const getRebirthReq = () => 100000 * Math.pow(5, State.rebirths); // Lowered cost for earlier rebirth
 
         const getCityData = (id) => CITIES_DB.find(c => c.id === id);
         
@@ -301,7 +380,7 @@
         };
         
         const getCityIncome = (id, level) => {
-            if(level === 0) return 0;
+            if(level === 0 || State.cities[id].damaged) return 0; // Disasters halt income!
             const base = getCityData(id).inc;
             return base * Math.pow(1.25, level - 1);
         };
@@ -371,9 +450,13 @@
                     State.money = data.money || 0;
                     State.totalEarned = data.totalEarned || 0;
                     State.rebirths = data.rebirths || 0;
+                    State.shields = data.shields || 0;
                     if(data.cities) {
                         for(let id in data.cities) {
-                            if(State.cities[id]) State.cities[id].level = data.cities[id].level;
+                            if(State.cities[id]) {
+                                State.cities[id].level = data.cities[id].level || 0;
+                                State.cities[id].damaged = data.cities[id].damaged || false;
+                            }
                         }
                     }
                 } else {
@@ -462,6 +545,7 @@
                 
                 document.getElementById('stat-money').innerText = formatMoney(State.money);
                 document.getElementById('stat-income').innerText = formatMoney(inc) + "/s";
+                document.getElementById('stat-shields').innerText = State.shields;
                 
                 let owned = 0;
                 for(let k in State.cities) if(State.cities[k].level > 0) owned++;
@@ -479,7 +563,10 @@
                         Modal.show("World Rebirth", "This will reset your cash and city progress, but grant a permanent +50% income multiplier and unlock new city tiers. Proceed?", "confirm", (res) => {
                             if(res) {
                                 State.money = 0;
-                                for(let k in State.cities) State.cities[k].level = 0;
+                                for(let k in State.cities) {
+                                    State.cities[k].level = 0;
+                                    State.cities[k].damaged = false;
+                                }
                                 State.rebirths++;
                                 UI.update();
                                 ThreeScene.updateMarkers();
@@ -493,6 +580,32 @@
                     rbBtn.classList.add('opacity-50', 'cursor-not-allowed');
                     rbBtn.innerText = `Rebirth (Req: ${formatMoney(req)})`;
                     rbBtn.onclick = null;
+                }
+
+                // Update crate button
+                const crateBtn = document.getElementById('btn-buy-crate');
+                if(State.money >= 25000) {
+                    crateBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-slate-700');
+                    crateBtn.classList.add('bg-amber-600', 'hover:bg-amber-500');
+                    crateBtn.onclick = () => {
+                        State.money -= 25000;
+                        const roll = Math.random();
+                        if(roll < 0.3) {
+                            State.shields += 1;
+                            Modal.show("Crate Opened!", "You found a Disaster Shield! It will automatically block the next disaster.", "alert");
+                        } else {
+                            const cash = Math.floor(25000 * (1.5 + Math.random()));
+                            State.money += cash;
+                            State.totalEarned += cash;
+                            Modal.show("Crate Opened!", `You found a massive cash drop of ${formatMoney(cash)}!`, "alert");
+                        }
+                        UI.update();
+                        saveGame();
+                    };
+                } else {
+                    crateBtn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-slate-700');
+                    crateBtn.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                    crateBtn.onclick = null;
                 }
             },
             createFloatText: (x, y, text) => {
@@ -521,6 +634,23 @@
             if(inc > 0) {
                 State.money += inc;
                 State.totalEarned += inc;
+                
+                // Disaster Mechanic (2% chance per tick if cities owned)
+                if(Math.random() < 0.02) {
+                    const owned = Object.keys(State.cities).filter(id => State.cities[id].level > 0 && !State.cities[id].damaged);
+                    if(owned.length > 0) {
+                        const target = owned[Math.floor(Math.random() * owned.length)];
+                        if(State.shields > 0) {
+                            State.shields--;
+                        } else {
+                            State.cities[target].damaged = true;
+                            ThreeScene.updateMarkers();
+                            ThreeScene.populateSidebarCities();
+                            if(ThreeScene.selectedCityId === target) ThreeScene.openCityPanel(target);
+                        }
+                    }
+                }
+                
                 UI.update();
                 // Update open panel dynamically
                 if(ThreeScene.selectedCityId && !document.getElementById('city-panel').classList.contains('hidden')) {
@@ -659,12 +789,16 @@
             updateMarkers: () => {
                 CITIES_DB.forEach(city => {
                     const m = ThreeScene.markers[city.id];
-                    const level = State.cities[city.id].level;
+                    const stateData = State.cities[city.id];
+                    const level = stateData.level;
                     const isLocked = State.rebirths < city.req;
 
                     if (isLocked) {
                         m.dot.material.color.setHex(0x334155); // Dark grey
                         m.group.scale.set(0.7, 0.7, 0.7);
+                    } else if (stateData.damaged) {
+                        m.dot.material.color.setHex(0xf43f5e); // Rose/Red for damaged
+                        m.group.scale.set(1.4, 1.4, 1.4);
                     } else if (level === 0) {
                         m.dot.material.color.setHex(0xe2e8f0); // White
                         m.group.scale.set(1, 1, 1);
@@ -732,13 +866,19 @@
                 document.getElementById('city-panel').classList.remove('hidden');
                 document.getElementById('cp-name').innerText = city.name;
                 
+                const imgEl = document.getElementById('cp-image');
+                imgEl.src = `images/landmarks/${id}.jpg`;
+                imgEl.onerror = () => { imgEl.src = `https://placehold.co/300x150/0f172a/3b82f6?text=${encodeURIComponent(city.name)}`; };
+                
                 const viewLock = document.getElementById('cp-locked-view');
                 const viewUnowned = document.getElementById('cp-unowned-view');
                 const viewOwned = document.getElementById('cp-owned-view');
+                const viewDamaged = document.getElementById('cp-damaged-view');
                 
                 viewLock.classList.add('hidden');
                 viewUnowned.classList.add('hidden');
                 viewOwned.classList.add('hidden');
+                viewDamaged.classList.add('hidden');
 
                 if (isLocked) {
                     document.getElementById('cp-status').innerText = "Locked Region";
@@ -759,6 +899,28 @@
                         if(State.money >= city.cost) {
                             State.money -= city.cost;
                             stateData.level = 1;
+                            UI.update();
+                            ThreeScene.updateMarkers();
+                            ThreeScene.populateSidebarCities();
+                            ThreeScene.openCityPanel(id); // refresh
+                            saveGame();
+                        }
+                    };
+                } else if (stateData.damaged) {
+                    document.getElementById('cp-status').innerText = `Level ${stateData.level} - DAMAGED`;
+                    const repairCost = Math.floor(getCityCost(id, stateData.level) * 0.25);
+                    document.getElementById('cp-repair-cost').innerText = formatMoney(repairCost);
+                    viewDamaged.classList.remove('hidden');
+                    
+                    const btn = document.getElementById('cp-repair-btn');
+                    btn.className = State.money >= repairCost ? 
+                        "w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 rounded transition-colors mb-2" : 
+                        "w-full bg-slate-700 text-slate-500 font-bold py-2 rounded cursor-not-allowed mb-2";
+
+                    btn.onclick = () => {
+                        if(State.money >= repairCost) {
+                            State.money -= repairCost;
+                            stateData.damaged = false;
                             UI.update();
                             ThreeScene.updateMarkers();
                             ThreeScene.populateSidebarCities();
@@ -788,6 +950,7 @@
                             ThreeScene.updateMarkers();
                             ThreeScene.populateSidebarCities();
                             ThreeScene.openCityPanel(id); // refresh
+                            saveGame();
                         }
                     };
                 }
@@ -805,20 +968,26 @@
                 
                 CITIES_DB.forEach(city => {
                     const isLocked = State.rebirths < city.req;
-                    const level = State.cities[city.id].level;
+                    const stateData = State.cities[city.id];
+                    const level = stateData.level;
                     
                     if (isLocked) return; // Don't show locked in sidebar
                     
                     const div = document.createElement('div');
-                    div.className = "flex justify-between items-center p-2 bg-slate-800/50 rounded border border-slate-700 cursor-pointer hover:bg-slate-700/50 transition";
+                    let bgClass = "bg-slate-800/50 hover:bg-slate-700/50 border-slate-700";
+                    if (stateData.damaged) bgClass = "bg-red-900/40 hover:bg-red-800/50 border-red-500/50";
+                    
+                    div.className = `flex justify-between items-center p-2 rounded border cursor-pointer transition ${bgClass}`;
                     
                     const nameSpan = document.createElement('span');
-                    nameSpan.className = level > 0 ? "text-emerald-400 font-bold" : "text-white";
+                    nameSpan.className = level > 0 ? (stateData.damaged ? "text-red-400 font-bold" : "text-emerald-400 font-bold") : "text-white";
                     nameSpan.innerText = city.name + (level > 0 ? ` (Lv.${level})` : '');
+                    if(stateData.damaged) nameSpan.innerText += " ⚠️";
                     
                     const incSpan = document.createElement('span');
                     incSpan.className = "text-xs text-slate-400";
-                    if(level > 0) incSpan.innerText = "+" + formatMoney(getCityIncome(city.id, level) * getMultiplier()) + "/s";
+                    if(stateData.damaged) incSpan.innerText = "DAMAGED";
+                    else if(level > 0) incSpan.innerText = "+" + formatMoney(getCityIncome(city.id, level) * getMultiplier()) + "/s";
                     else incSpan.innerText = formatMoney(city.cost);
 
                     div.appendChild(nameSpan);
