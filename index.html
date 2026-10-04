@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global City Magnate 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* Slate 950 */
+            color: #f8fafc;
+            user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        /* Interactive elements within UI need pointer-events */
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #loading-screen {
+            position: absolute;
+            inset: 0;
+            background: #020617;
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* Floating animations for numbers */
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+        .floating-text {
+            position: absolute;
+            color: #10b981;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="flex flex-col items-center">
+            <div class="spinner mb-4"></div>
+            <h2 class="text-xl font-bold text-blue-400 tracking-widest uppercase">Initializing Globe</h2>
+        </div>
+    </div>
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="absolute inset-0"></div>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        
+        <!-- Top Bar: Stats -->
+        <div class="flex justify-between items-start p-4 md:p-6 interactive">
+            <div class="glass-panel p-4 rounded-2xl flex gap-6 items-center">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Bank</p>
+                    <p class="text-2xl md:text-3xl font-black text-emerald-400 font-mono" id="ui-money">$0</p>
+                </div>
+                <div class="h-10 w-px bg-slate-700"></div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Income</p>
+                    <p class="text-lg md:text-xl font-bold text-cyan-400 font-mono" id="ui-income">+$0/s</p>
+                </div>
+                <div class="h-10 w-px bg-slate-700"></div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Multiplier</p>
+                    <p class="text-lg md:text-xl font-bold text-purple-400 font-mono" id="ui-multiplier">1.0x</p>
+                </div>
+            </div>
+
+            <!-- Auth & Level Info -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-col items-end">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400">Player Level</p>
+                        <p class="text-xl font-bold text-blue-400" id="ui-level">Lv. 1</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-slate-800 border-2 border-blue-500 flex items-center justify-center font-bold text-xl" id="ui-avatar">
+                        ?
+                    </div>
+                </div>
+                <div id="auth-container">
+                    <button id="btn-google-login" class="text-xs bg-white text-slate-900 px-3 py-1.5 rounded font-bold hover:bg-gray-200 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        Sign in
+                    </button>
+                    <button id="btn-logout" class="hidden text-xs bg-slate-700 text-white px-3 py-1.5 rounded font-bold hover:bg-slate-600 transition-colors">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Area (Left & Right Panels) -->
+        <div class="flex-1 flex justify-between items-stretch p-4 md:p-6 overflow-hidden pb-20">
+            
+            <!-- Left Panel: City Upgrades & Rebirth -->
+            <div class="w-80 flex flex-col gap-4 interactive">
+                <!-- City Info -->
+                <div class="glass-panel rounded-2xl flex-1 flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-700/50 bg-slate-800/50">
+                        <h2 class="text-xl font-bold" id="panel-city-name">Select a City</h2>
+                        <p class="text-sm text-slate-400" id="panel-city-status">Spin the globe and click a marker.</p>
+                    </div>
+                    <div class="p-4 flex-1 overflow-y-auto" id="panel-city-content">
+                        <div class="h-full flex items-center justify-center text-slate-500 text-sm text-center">
+                            Interact with the 3D globe to view city details and purchase upgrades.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rebirth Panel -->
+                <div class="glass-panel p-4 rounded-2xl border border-purple-500/30">
+                    <h3 class="font-bold text-purple-400 mb-1 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Prestige Rebirth
+                    </h3>
+                    <p class="text-xs text-slate-300 mb-3">Reset progress for a permanent income multiplier.</p>
+                    <button id="btn-rebirth" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-lg text-sm transition-colors opacity-50 cursor-not-allowed">
+                        Rebirth (Requires $1M)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Leaderboard & Gambling -->
+            <div class="w-80 flex flex-col gap-4 interactive">
+                
+                <!-- Gambling Mini-Game -->
+                <div class="glass-panel p-4 rounded-2xl border border-yellow-500/30">
+                    <h3 class="font-bold text-yellow-400 mb-1">High Roller Casino</h3>
+                    <p class="text-xs text-slate-300 mb-3">Risk it all. 50/50 chance to double your bet or lose it.</p>
+                    <div class="flex gap-2 mb-2">
+                        <input type="number" id="input-bet" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-yellow-500" placeholder="Bet Amount">
+                        <button id="btn-bet-max" class="bg-slate-700 hover:bg-slate-600 px-2 rounded text-xs font-bold">MAX</button>
+                    </div>
+                    <button id="btn-gamble" class="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-bold py-2 rounded-lg text-sm transition-all transform active:scale-95">
+                        Flip Coin
+                    </button>
+                    <p id="gamble-result" class="text-center text-xs mt-2 h-4 font-bold"></p>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="glass-panel rounded-2xl flex-1 flex flex-col overflow-hidden">
+                    <div class="p-3 border-b border-slate-700/50 bg-slate-800/50 flex justify-between items-center">
+                        <h3 class="font-bold text-blue-400">Global Leaders</h3>
+                        <button id="btn-refresh-lb" class="text-slate-400 hover:text-white">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        </button>
+                    </div>
+                    <div class="p-0 flex-1 overflow-y-auto">
+                        <ul id="leaderboard-list" class="divide-y divide-slate-700/50">
+                            <li class="p-4 text-center text-sm text-slate-500">Loading leaders...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Controls -->
+        <div class="p-4 md:p-6 interactive flex justify-center pb-8">
+             <div class="glass-panel px-6 py-3 rounded-full text-sm text-slate-300 flex gap-6 items-center border border-slate-600/50">
+                 <span class="flex items-center gap-2"><kbd class="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs font-mono">Drag</kbd> Rotate Globe</span>
+                 <span class="flex items-center gap-2"><kbd class="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs font-mono">Scroll</kbd> Zoom</span>
+                 <span class="flex items-center gap-2"><kbd class="bg-slate-800 border border-slate-600 rounded px-2 py-0.5 text-xs font-mono">Click</kbd> City</span>
+             </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment Variables Handling
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'global-city-magnate-3d';
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                /* Fallback mock config if needed for local non-iframe testing, but will fail actual network */
+            };
+        } catch(e) { console.error("Firebase config parse error", e); }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- GAME STATE ---
+        window.GameState = {
+            userId: null,
+            playerName: "Anonymous Magnate",
+            money: 1000, // Starting money
+            totalEarned: 1000,
+            rebirths: 0,
+            multiplier: 1.0,
+            level: 1,
+            lastSaveTime: Date.now(),
+            cities: {
+                // Base data will be merged with save data
+                new_york: { id: 'new_york', name: 'New York', lat: 40.7128, lon: -74.0060, baseCost: 500, baseIncome: 10, color: 0x3b82f6, owned: false, level: 1, borderLevel: 1 },
+                london: { id: 'london', name: 'London', lat: 51.5074, lon: -0.1278, baseCost: 2500, baseIncome: 60, color: 0xef4444, owned: false, level: 1, borderLevel: 1 },
+                paris: { id: 'paris', name: 'Paris', lat: 48.8566, lon: 2.3522, baseCost: 8000, baseIncome: 200, color: 0xa855f7, owned: false, level: 1, borderLevel: 1 },
+                tokyo: { id: 'tokyo', name: 'Tokyo', lat: 35.6762, lon: 139.6503, baseCost: 35000, baseIncome: 800, color: 0xf59e0b, owned: false, level: 1, borderLevel: 1 },
+                sydney: { id: 'sydney', name: 'Sydney', lat: -33.8688, lon: 151.2093, baseCost: 150000, baseIncome: 3500, color: 0x10b981, owned: false, level: 1, borderLevel: 1 },
+                rio: { id: 'rio', name: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729, baseCost: 500000, baseIncome: 12000, color: 0xec4899, owned: false, level: 1, borderLevel: 1 },
+                dubai: { id: 'dubai', name: 'Dubai', lat: 25.2048, lon: 55.2708, baseCost: 2000000, baseIncome: 50000, color: 0xeab308, owned: false, level: 1, borderLevel: 1 },
+                singapore: { id: 'singapore', name: 'Singapore', lat: 1.3521, lon: 103.8198, baseCost: 10000000, baseIncome: 250000, color: 0x06b6d4, owned: false, level: 1, borderLevel: 1 }
+            }
+        };
+
+        // UI Elements
+        const uiMoney = document.getElementById('ui-money');
+        const uiIncome = document.getElementById('ui-income');
+        const uiMultiplier = document.getElementById('ui-multiplier');
+        const uiLevel = document.getElementById('ui-level');
+        const uiAvatar = document.getElementById('ui-avatar');
+        
+        const btnGoogleLogin = document.getElementById('btn-google-login');
+        const btnLogout = document.getElementById('btn-logout');
+        
+        // Expose necessary functions to global scope for Three.js script to access
+        window.FirebaseAPI = {
+            saveGame: async () => {
+                if (!window.GameState.userId) return;
+                try {
+                    const saveRef = doc(db, 'artifacts', appId, 'users', window.GameState.userId, 'gameData', 'save');
+                    // Extract only necessary data to save
+                    const saveData = {
+                        playerName: window.GameState.playerName,
+                        money: window.GameState.money,
+                        totalEarned: window.GameState.totalEarned,
+                        rebirths: window.GameState.rebirths,
+                        lastSaveTime: Date.now(),
+                        cities: {}
+                    };
+                    for (let key in window.GameState.cities) {
+                        const c = window.GameState.cities[key];
+                        saveData.cities[key] = { owned: c.owned, level: c.level, borderLevel: c.borderLevel };
+                    }
+                    await setDoc(saveRef, saveData);
+                    
+                    // Also update public leaderboard entry (simplified to single doc per user)
+                    const lbRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', window.GameState.userId);
+                    await setDoc(lbRef, {
+                        playerName: window.GameState.playerName,
+                        totalEarned: window.GameState.totalEarned,
+                        rebirths: window.GameState.rebirths,
+                        level: window.GameState.level,
+                        timestamp: Date.now()
+                    });
+                } catch(e) { console.error("Save Error", e); }
+            },
+            loadGame: async () => {
+                if (!window.GameState.userId) return;
+                try {
+                    const saveRef = doc(db, 'artifacts', appId, 'users', window.GameState.userId, 'gameData', 'save');
+                    const docSnap = await getDoc(saveRef);
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        window.GameState.money = data.money || 0;
+                        window.GameState.totalEarned = data.totalEarned || 0;
+                        window.GameState.rebirths = data.rebirths || 0;
+                        window.GameState.playerName = data.playerName || window.GameState.playerName;
+                        
+                        if (data.cities) {
+                            for (let key in data.cities) {
+                                if (window.GameState.cities[key]) {
+                                    window.GameState.cities[key].owned = data.cities[key].owned;
+                                    window.GameState.cities[key].level = data.cities[key].level;
+                                    window.GameState.cities[key].borderLevel = data.cities[key].borderLevel;
+                                }
+                            }
+                        }
+                        
+                        // Calculate offline progress (simple)
+                        if (data.lastSaveTime) {
+                            const secondsOffline = Math.floor((Date.now() - data.lastSaveTime) / 1000);
+                            if (secondsOffline > 60) { // Only if gone for > 1 min
+                                const income = window.GameLogic.getTotalIncome();
+                                const offlineEarnings = income * Math.min(secondsOffline, 86400); // Cap at 24 hours
+                                window.GameState.money += offlineEarnings;
+                                window.GameState.totalEarned += offlineEarnings;
+                                console.log(`Earned $${offlineEarnings} while offline!`);
+                                // Could show a custom modal here, avoiding alert()
+                            }
+                        }
+                    }
+                    window.GameLogic.recalculateStats();
+                    if(window.SceneLogic) window.SceneLogic.updateCityVisuals();
+                } catch(e) { console.error("Load Error", e); }
+            },
+            fetchLeaderboard: async () => {
+                try {
+                    const lbList = document.getElementById('leaderboard-list');
+                    lbList.innerHTML = '<li class="p-4 text-center text-sm text-slate-500">Loading...</li>';
+                    
+                    const lbCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
+                    // Rule 2: No complex queries. Fetch all, sort in memory.
+                    const snap = await getDocs(lbCol);
+                    const entries = [];
+                    snap.forEach(doc => entries.push(doc.data()));
+                    
+                    entries.sort((a, b) => b.totalEarned - a.totalEarned);
+                    const top10 = entries.slice(0, 10);
+                    
+                    lbList.innerHTML = '';
+                    if (top10.length === 0) {
+                        lbList.innerHTML = '<li class="p-4 text-center text-sm text-slate-500">No leaders yet.</li>';
+                        return;
+                    }
+                    
+                    top10.forEach((entry, idx) => {
+                        const li = document.createElement('li');
+                        li.className = 'p-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors';
+                        
+                        // Medal coloring
+                        let rankColor = 'text-slate-400';
+                        if(idx === 0) rankColor = 'text-yellow-400 font-bold';
+                        else if(idx === 1) rankColor = 'text-slate-300 font-bold';
+                        else if(idx === 2) rankColor = 'text-amber-600 font-bold';
+
+                        li.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <span class="${rankColor} w-4 text-center">${idx + 1}</span>
+                                <div>
+                                    <p class="text-sm font-bold text-white">${entry.playerName}</p>
+                                    <p class="text-xs text-slate-400">Lv. ${entry.level || 1} • ${entry.rebirths || 0} Rebirths</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-bold text-emerald-400 font-mono">$${window.GameLogic.formatShort(entry.totalEarned)}</p>
+                            </div>
+                        `;
+                        lbList.appendChild(li);
+                    });
+                } catch(e) { console.error("Leaderboard Error", e); }
+            }
+        };
+
+        // Auth Logic
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch(error) {
+                console.error("Initial Auth Error:", error);
+            }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                window.GameState.userId = user.uid;
+                
+                if (!user.isAnonymous && user.displayName) {
+                    window.GameState.playerName = user.displayName;
+                    uiAvatar.innerText = user.displayName.charAt(0).toUpperCase();
+                    uiAvatar.classList.add('bg-blue-600');
+                    btnGoogleLogin.classList.add('hidden');
+                    btnLogout.classList.remove('hidden');
+                } else {
+                    // Anonymous
+                    window.GameState.playerName = "Anon_" + user.uid.substring(0, 5);
+                    uiAvatar.innerText = "?";
+                    btnGoogleLogin.classList.remove('hidden');
+                    btnLogout.classList.add('hidden');
+                }
+                
+                await window.FirebaseAPI.loadGame();
+                window.FirebaseAPI.fetchLeaderboard();
+            }
+        });
+
+        // Auth Event Listeners
+        btnGoogleLogin.addEventListener('click', async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch(e) { console.error("Google login failed", e); }
+        });
+
+        btnLogout.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                window.location.reload(); // Quick reset
+            } catch(e) { console.error("Logout failed", e); }
+        });
+
+        // Initialize Auth Flow
+        initAuth();
+
+        document.getElementById('btn-refresh-lb').addEventListener('click', () => {
+            window.FirebaseAPI.fetchLeaderboard();
+        });
+        
+    </script>
+
+    <script>
+        // Core Game Logic (Independent of Three.js)
+        window.GameLogic = {
+            formatMoney: (num) => {
+                return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
+            },
+            formatShort: (num) => {
+                if(num >= 1e9) return (num/1e9).toFixed(2) + 'B';
+                if(num >= 1e6) return (num/1e6).toFixed(2) + 'M';
+                if(num >= 1e3) return (num/1e3).toFixed(1) + 'k';
+                return Math.floor(num).toString();
+            },
+            getCityIncome: (city) => {
+                if (!city.owned) return 0;
+                // Base + Level bonus (25% per level)
+                const levelMult = 1 + ((city.level - 1) * 0.25);
+                // Border Multiplier (50% per border level)
+                const borderMult = 1 + ((city.borderLevel - 1) * 0.5);
+                return city.baseIncome * levelMult * borderMult;
+            },
+            getTotalIncome: () => {
+                let total = 0;
+                for(let key in window.GameState.cities) {
+                    total += window.GameLogic.getCityIncome(window.GameState.cities[key]);
+                }
+                return total * window.GameState.multiplier;
+            },
+            getUpgradeCost: (city) => {
+                return Math.floor(city.baseCost * 0.5 * Math.pow(1.6, city.level - 1));
+            },
+            getBorderCost: (city) => {
+                return Math.floor(city.baseCost * 2 * Math.pow(2.2, city.borderLevel - 1));
+            },
+            recalculateStats: () => {
+                // Multiplier based on rebirths
+                window.GameState.multiplier = 1.0 + (window.GameState.rebirths * 0.5);
+                // Level based on total earned (Cubic root scaling)
+                window.GameState.level = Math.floor(Math.cbrt(window.GameState.totalEarned / 1000)) + 1;
+                
+                document.getElementById('ui-money').innerText = window.GameLogic.formatMoney(window.GameState.money);
+                document.getElementById('ui-income').innerText = "+" + window.GameLogic.formatShort(window.GameLogic.getTotalIncome()) + "/s";
+                document.getElementById('ui-multiplier').innerText = window.GameState.multiplier.toFixed(1) + "x";
+                document.getElementById('ui-level').innerText = "Lv. " + window.GameState.level;
+                
+                window.GameLogic.updateRebirthUI();
+            },
+            tick: () => {
+                const inc = window.GameLogic.getTotalIncome();
+                if(inc > 0) {
+                    window.GameState.money += inc;
+                    window.GameState.totalEarned += inc;
+                    window.GameLogic.recalculateStats();
+                    if(window.SceneLogic && window.SceneLogic.selectedCityId) {
+                        window.SceneLogic.renderCityPanel(window.SceneLogic.selectedCityId); // Update buttons
+                    }
+                }
+            },
+            createFloatingText: (x, y, text, color = '#10b981') => {
+                const el = document.createElement('div');
+                el.className = 'floating-text font-mono text-sm';
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                el.style.color = color;
+                el.innerText = text;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            },
+            updateRebirthUI: () => {
+                const reqMoney = 1000000 * Math.pow(10, window.GameState.rebirths);
+                const btn = document.getElementById('btn-rebirth');
+                if (window.GameState.money >= reqMoney) {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btn.innerText = `Rebirth (Cost: ${window.GameLogic.formatShort(reqMoney)})`;
+                    btn.onclick = () => window.GameLogic.performRebirth(reqMoney);
+                } else {
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    btn.innerText = `Rebirth (Req: ${window.GameLogic.formatShort(reqMoney)})`;
+                    btn.onclick = null;
+                }
+            },
+            performRebirth: (cost) => {
+                if (window.GameState.money < cost) return;
+                
+                // Visual effect
+                const overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.inset = 0;
+                overlay.style.backgroundColor = '#fff';
+                overlay.style.zIndex = 9999;
+                overlay.style.animation = 'fadeOut 2s forwards';
+                document.body.appendChild(overlay);
+                
+                // Reset State
+                window.GameState.money = 1000;
+                for(let key in window.GameState.cities) {
+                    window.GameState.cities[key].owned = false;
+                    window.GameState.cities[key].level = 1;
+                    window.GameState.cities[key].borderLevel = 1;
+                }
+                window.GameState.rebirths += 1;
+                
+                window.GameLogic.recalculateStats();
+                if(window.SceneLogic) window.SceneLogic.updateCityVisuals();
+                if(window.SceneLogic) window.SceneLogic.renderCityPanel(window.SceneLogic.selectedCityId);
+                
+                window.FirebaseAPI.saveGame();
+                
+                setTimeout(() => overlay.remove(), 2000);
+            }
+        };
+
+        // Gambling Logic
+        const inputBet = document.getElementById('input-bet');
+        const btnBetMax = document.getElementById('btn-bet-max');
+        const btnGamble = document.getElementById('btn-gamble');
+        const gambleRes = document.getElementById('gamble-result');
+
+        btnBetMax.addEventListener('click', () => {
+            inputBet.value = Math.floor(window.GameState.money);
+        });
+
+        btnGamble.addEventListener('click', () => {
+            let bet = parseInt(inputBet.value);
+            if (isNaN(bet) || bet <= 0) {
+                gambleRes.innerText = "Enter valid bet!";
+                gambleRes.className = "text-center text-xs mt-2 h-4 font-bold text-red-400";
+                return;
+            }
+            if (bet > window.GameState.money) {
+                gambleRes.innerText = "Not enough money!";
+                gambleRes.className = "text-center text-xs mt-2 h-4 font-bold text-red-400";
+                return;
+            }
+
+            window.GameState.money -= bet;
+            
+            // 50/50
+            if (Math.random() < 0.5) {
+                const win = bet * 2;
+                window.GameState.money += win;
+                window.GameState.totalEarned += win;
+                gambleRes.innerText = `Won ${window.GameLogic.formatMoney(win)}!`;
+                gambleRes.className = "text-center text-xs mt-2 h-4 font-bold text-emerald-400";
+            } else {
+                gambleRes.innerText = `Lost ${window.GameLogic.formatMoney(bet)}.`;
+                gambleRes.className = "text-center text-xs mt-2 h-4 font-bold text-red-400";
+            }
+            window.GameLogic.recalculateStats();
+            window.FirebaseAPI.saveGame(); // Save immediately on gamble
+        });
+
+        // Save Loop
+        setInterval(() => {
+            window.FirebaseAPI.saveGame();
+        }, 30000); // Auto-save every 30s
+
+        // Income Loop
+        setInterval(window.GameLogic.tick, 1000);
+
+        // Add a global fadeOut animation dynamically
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `@keyframes fadeOut { 0% {opacity: 1;} 100% {opacity: 0; display:none;} }`;
+        document.head.appendChild(styleSheet);
+    </script>
+
+    <script>
+        // Three.js Integration
+        window.SceneLogic = {
+            scene: null, camera: null, renderer: null, earth: null, cityMeshes: {}, selectedCityId: null,
+            raycaster: new THREE.Raycaster(), mouse: new THREE.Vector2(),
+            isDragging: false, previousMousePosition: { x: 0, y: 0 },
+            rotationVelocity: { x: 0.001, y: 0 },
+            
+            init: () => {
+                const container = document.getElementById('canvas-container');
+                
+                // Scene & Camera
+                window.SceneLogic.scene = new THREE.Scene();
+                // Add some space background color
+                window.SceneLogic.scene.background = new THREE.Color(0x020617);
+                window.SceneLogic.scene.fog = new THREE.FogExp2(0x020617, 0.02);
+
+                window.SceneLogic.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                window.SceneLogic.camera.position.z = 18;
+
+                // Renderer
+                window.SceneLogic.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                window.SceneLogic.renderer.setSize(window.innerWidth, window.innerHeight);
+                window.SceneLogic.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Performance optimization
+                container.appendChild(window.SceneLogic.renderer.domElement);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                window.SceneLogic.scene.add(ambientLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight.position.set(5, 3, 5);
+                window.SceneLogic.scene.add(dirLight);
+
+                const backLight = new THREE.DirectionalLight(0x3b82f6, 0.5);
+                backLight.position.set(-5, -3, -5);
+                window.SceneLogic.scene.add(backLight);
+
+                // Earth Base Sphere (Solid)
+                const earthGeo = new THREE.SphereGeometry(5, 64, 64);
+                const earthMat = new THREE.MeshPhongMaterial({ 
+                    color: 0x0f172a, 
+                    specular: 0x111111,
+                    shininess: 10
+                });
+                window.SceneLogic.earth = new THREE.Mesh(earthGeo, earthMat);
+                window.SceneLogic.scene.add(window.SceneLogic.earth);
+
+                // Earth Grid Sphere (Wireframe) overlay
+                const gridGeo = new THREE.SphereGeometry(5.05, 32, 32);
+                const gridMat = new THREE.MeshBasicMaterial({
+                    color: 0x1e3a8a,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const earthGrid = new THREE.Mesh(gridGeo, gridMat);
+                window.SceneLogic.earth.add(earthGrid);
+
+                // Initialize City Markers
+                window.SceneLogic.createCityMarkers();
+
+                // Events
+                window.addEventListener('resize', window.SceneLogic.onWindowResize, false);
+                
+                // Interaction Events (Attach to renderer canvas to not block UI)
+                const canvas = window.SceneLogic.renderer.domElement;
+                canvas.addEventListener('mousedown', window.SceneLogic.onMouseDown, false);
+                canvas.addEventListener('mousemove', window.SceneLogic.onMouseMove, false);
+                canvas.addEventListener('mouseup', window.SceneLogic.onMouseUp, false);
+                canvas.addEventListener('mouseleave', window.SceneLogic.onMouseUp, false);
+                canvas.addEventListener('wheel', window.SceneLogic.onMouseWheel, {passive: false});
+
+                // Start Loop
+                window.SceneLogic.animate();
+                
+                // Remove Loading Screen
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.opacity = 0;
+                    setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+                }, 1000);
+            },
+
+            // Lat/Lon to Vector3 conversion
+            latLongToVector3: (lat, lon, radius) => {
+                var phi = (90 - lat) * (Math.PI / 180);
+                var theta = (lon + 180) * (Math.PI / 180);
+
+                var x = -(radius * Math.sin(phi) * Math.cos(theta));
+                var z = (radius * Math.sin(phi) * Math.sin(theta));
+                var y = (radius * Math.cos(phi));
+
+                return new THREE.Vector3(x, y, z);
+            },
+
+            createCityMarkers: () => {
+                const cities = window.GameState.cities;
+                for (let key in cities) {
+                    const city = cities[key];
+                    const pos = window.SceneLogic.latLongToVector3(city.lat, city.lon, 5.0);
+                    
+                    // Group to hold marker + border ring
+                    const group = new THREE.Group();
+                    group.position.copy(pos);
+                    // Orient marker to face outward from center
+                    group.lookAt(new THREE.Vector3(0,0,0)); 
+
+                    // Core Marker (Pin/Sphere)
+                    const markerGeo = new THREE.SphereGeometry(0.15, 16, 16);
+                    const markerMat = new THREE.MeshBasicMaterial({ color: 0x64748b }); // Gray default
+                    const marker = new THREE.Mesh(markerGeo, markerMat);
+                    marker.userData = { id: key, type: 'marker' };
+                    group.add(marker);
+
+                    // Border Ring (Torus)
+                    const ringGeo = new THREE.TorusGeometry(0.3, 0.02, 16, 32);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: city.color, transparent: true, opacity: 0 });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    // Torus is created on XY plane, need to rotate it to lay flat on the sphere surface
+                    ring.rotation.x = Math.PI / 2;
+                    group.add(ring);
+
+                    // Selection Highlight (Invisible cylinder to increase hit area)
+                    const hitGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.5, 16);
+                    const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+                    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+                    hitMesh.rotation.x = Math.PI / 2;
+                    hitMesh.userData = { id: key, type: 'hit' };
+                    group.add(hitMesh);
+
+                    window.SceneLogic.earth.add(group);
+                    
+                    window.SceneLogic.cityMeshes[key] = { group, marker, ring };
+                }
+                window.SceneLogic.updateCityVisuals();
+            },
+
+            updateCityVisuals: () => {
+                const cities = window.GameState.cities;
+                for (let key in cities) {
+                    const city = cities[key];
+                    const meshes = window.SceneLogic.cityMeshes[key];
+                    
+                    if (city.owned) {
+                        meshes.marker.material.color.setHex(city.color);
+                        // Scale marker slightly with level
+                        const scale = 1 + (city.level * 0.05);
+                        meshes.marker.scale.set(scale, scale, scale);
+                        
+                        // Show and scale ring based on border level
+                        meshes.ring.material.opacity = 0.5;
+                        const ringRadius = 0.3 + (city.borderLevel * 0.15);
+                        meshes.ring.scale.set(ringRadius/0.3, ringRadius/0.3, 1);
+                    } else {
+                        meshes.marker.material.color.setHex(0x64748b);
+                        meshes.marker.scale.set(1, 1, 1);
+                        meshes.ring.material.opacity = 0;
+                    }
+
+                    // Selection pulsing logic handled in animate loop based on selectedCityId
+                }
+            },
+
+            /* Interaction Handlers */
+            onWindowResize: () => {
+                window.SceneLogic.camera.aspect = window.innerWidth / window.innerHeight;
+                window.SceneLogic.camera.updateProjectionMatrix();
+                window.SceneLogic.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+
+            onMouseDown: (e) => {
+                window.SceneLogic.isDragging = true;
+                window.SceneLogic.previousMousePosition = { x: e.offsetX, y: e.offsetY };
+                
+                // Raycasting for city click
+                window.SceneLogic.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                window.SceneLogic.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                window.SceneLogic.raycaster.setFromCamera(window.SceneLogic.mouse, window.SceneLogic.camera);
+                
+                // Get all hit meshes from city groups
+                let objectsToIntersect = [];
+                for(let key in window.SceneLogic.cityMeshes) {
+                    objectsToIntersect.push(window.SceneLogic.cityMeshes[key].group.children[2]); // The hit mesh
+                }
+                
+                const intersects = window.SceneLogic.raycaster.intersectObjects(objectsToIntersect);
+                if (intersects.length > 0) {
+                    const cityId = intersects[0].object.userData.id;
+                    window.SceneLogic.selectCity(cityId);
+                    
+                    // Visual feedback on click
+                    window.GameLogic.createFloatingText(e.clientX, e.clientY, "Selected");
+                }
+            },
+
+            onMouseMove: (e) => {
+                if (window.SceneLogic.isDragging) {
+                    const deltaMove = {
+                        x: e.offsetX - window.SceneLogic.previousMousePosition.x,
+                        y: e.offsetY - window.SceneLogic.previousMousePosition.y
+                    };
+
+                    // Manual Rotation of Earth
+                    window.SceneLogic.earth.rotation.y += deltaMove.x * 0.005;
+                    window.SceneLogic.earth.rotation.x += deltaMove.y * 0.005;
+                    
+                    // Stop auto rotation while dragging
+                    window.SceneLogic.rotationVelocity.y = 0;
+                }
+                window.SceneLogic.previousMousePosition = { x: e.offsetX, y: e.offsetY };
+            },
+
+            onMouseUp: () => {
+                window.SceneLogic.isDragging = false;
+                // Resume slight auto y-rotation
+                window.SceneLogic.rotationVelocity.y = 0.001;
+            },
+
+            onMouseWheel: (e) => {
+                e.preventDefault();
+                window.SceneLogic.camera.position.z += e.deltaY * 0.01;
+                // Clamp zoom
+                window.SceneLogic.camera.position.z = Math.max(7, Math.min(window.SceneLogic.camera.position.z, 30));
+            },
+
+            /* UI Panel Render */
+            selectCity: (id) => {
+                window.SceneLogic.selectedCityId = id;
+                window.SceneLogic.renderCityPanel(id);
+                window.SceneLogic.updateCityVisuals();
+            },
+
+            renderCityPanel: (id) => {
+                if(!id) return;
+                const city = window.GameState.cities[id];
+                const panelTitle = document.getElementById('panel-city-name');
+                const panelStatus = document.getElementById('panel-city-status');
+                const panelContent = document.getElementById('panel-city-content');
+
+                panelTitle.innerText = city.name;
+                panelTitle.style.color = '#' + city.color.toString(16).padStart(6, '0');
+                
+                if (!city.owned) {
+                    panelStatus.innerText = "Unclaimed Territory";
+                    const canAfford = window.GameState.money >= city.baseCost;
+                    
+                    panelContent.innerHTML = `
+                        <div class="bg-slate-900/50 p-4 rounded-xl mb-4 border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-slate-400 text-sm">Projected Income</span>
+                                <span class="font-bold text-cyan-400">+${window.GameLogic.formatShort(city.baseIncome)}/s</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 text-sm">Acquisition Cost</span>
+                                <span class="font-bold text-emerald-400 font-mono">${window.GameLogic.formatMoney(city.baseCost)}</span>
+                            </div>
+                        </div>
+                        <button onclick="window.SceneLogic.buyCity('${city.id}')" 
+                                class="w-full py-3 rounded-lg font-bold transition-all ${canAfford ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                            Purchase City
+                        </button>
+                    `;
+                } else {
+                    panelStatus.innerText = `Level ${city.level} • Border Lv.${city.borderLevel}`;
+                    
+                    const upgCost = window.GameLogic.getUpgradeCost(city);
+                    const canAffordUpg = window.GameState.money >= upgCost;
+                    
+                    const bordCost = window.GameLogic.getBorderCost(city);
+                    const canAffordBord = window.GameState.money >= bordCost;
+
+                    const curInc = window.GameLogic.getCityIncome(city) * window.GameState.multiplier;
+
+                    panelContent.innerHTML = `
+                        <div class="bg-slate-900/50 p-4 rounded-xl mb-4 border border-slate-700 shadow-inner">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-400 text-sm">City Income</span>
+                                <span class="font-bold text-cyan-400 text-lg">+${window.GameLogic.formatShort(curInc)}/s</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- Upgrade Infrastructure -->
+                            <div class="bg-slate-800 p-3 rounded-lg border border-slate-600/50">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h3 class="font-bold text-white text-sm">Develop Infrastructure</h3>
+                                        <p class="text-xs text-slate-400">+25% Base Income</p>
+                                    </div>
+                                    <span class="font-bold text-emerald-400 text-sm font-mono">${window.GameLogic.formatShort(upgCost)}</span>
+                                </div>
+                                <button onclick="window.SceneLogic.upgradeCity('${city.id}')"
+                                    class="w-full py-2 px-4 text-sm font-bold rounded-lg transition-colors ${canAffordUpg ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                    Upgrade to Lv.${city.level + 1}
+                                </button>
+                            </div>
+
+                            <!-- Expand Borders -->
+                            <div class="bg-slate-800 p-3 rounded-lg border border-slate-600/50">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h3 class="font-bold text-white text-sm">Expand Borders</h3>
+                                        <p class="text-xs text-slate-400">+50% City Multiplier</p>
+                                    </div>
+                                    <span class="font-bold text-emerald-400 text-sm font-mono">${window.GameLogic.formatShort(bordCost)}</span>
+                                </div>
+                                <button onclick="window.SceneLogic.expandBorder('${city.id}')"
+                                    class="w-full py-2 px-4 text-sm font-bold rounded-lg transition-colors ${canAffordBord ? 'bg-pink-600 hover:bg-pink-500 text-white' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}">
+                                    Expand to Lv.${city.borderLevel + 1}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+
+            /* Action Wrappers */
+            buyCity: (id) => {
+                const city = window.GameState.cities[id];
+                if(window.GameState.money >= city.baseCost) {
+                    window.GameState.money -= city.baseCost;
+                    city.owned = true;
+                    window.GameLogic.recalculateStats();
+                    window.SceneLogic.updateCityVisuals();
+                    window.SceneLogic.renderCityPanel(id);
+                    window.FirebaseAPI.saveGame();
+                }
+            },
+
+            upgradeCity: (id) => {
+                const city = window.GameState.cities[id];
+                const cost = window.GameLogic.getUpgradeCost(city);
+                if(window.GameState.money >= cost) {
+                    window.GameState.money -= cost;
+                    city.level += 1;
+                    window.GameLogic.recalculateStats();
+                    window.SceneLogic.updateCityVisuals();
+                    window.SceneLogic.renderCityPanel(id);
+                }
+            },
+
+            expandBorder: (id) => {
+                const city = window.GameState.cities[id];
+                const cost = window.GameLogic.getBorderCost(city);
+                if(window.GameState.money >= cost) {
+                    window.GameState.money -= cost;
+                    city.borderLevel += 1;
+                    window.GameLogic.recalculateStats();
+                    window.SceneLogic.updateCityVisuals();
+                    window.SceneLogic.renderCityPanel(id);
+                }
+            },
+
+            animate: () => {
+                requestAnimationFrame(window.SceneLogic.animate);
+
+                // Auto Rotation
+                if(!window.SceneLogic.isDragging && window.SceneLogic.earth) {
+                    window.SceneLogic.earth.rotation.y += window.SceneLogic.rotationVelocity.y;
+                }
+
+                // Pulsing highlight for selected city
+                if(window.SceneLogic.selectedCityId) {
+                    const meshes = window.SceneLogic.cityMeshes[window.SceneLogic.selectedCityId];
+                    if(meshes) {
+                        const time = Date.now() * 0.005;
+                        const s = 1 + (Math.sin(time) * 0.2);
+                        // Scale the ring slightly for a pulse effect
+                        meshes.ring.scale.z = s;
+                        meshes.ring.material.opacity = 0.5 + (Math.sin(time) * 0.2);
+                    }
+                }
+
+                window.SceneLogic.renderer.render(window.SceneLogic.scene, window.SceneLogic.camera);
+            }
+        };
+
+        // Init when DOM is loaded
+        window.onload = () => {
+            window.SceneLogic.init();
+            window.GameLogic.recalculateStats();
+        };
+
+    </script>
+</body>
+</html>
